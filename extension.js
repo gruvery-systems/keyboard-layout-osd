@@ -13,8 +13,8 @@ export default class LayoutOsdExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._inputSourceManager = Keyboard.getInputSourceManager();
-        this._signalId = null;
-        this._testPopupSignalId = null;
+        this._popups = new Set();
+        this._timeout = null;
         this._signalId = this._inputSourceManager.connect(
             'current-source-changed',
             () => this._showLayout()
@@ -23,8 +23,6 @@ export default class LayoutOsdExtension extends Extension {
             'changed::test-popup',
             () => this._showPopup('TEST')
         );
-        this._popups = [];
-        this._timeout = null;
     }
 
     disable() {
@@ -38,13 +36,12 @@ export default class LayoutOsdExtension extends Extension {
             this._testPopupSignalId = null;
         }
 
-        this._destroyPopups();
-
         if (this._timeout) {
             GLib.source_remove(this._timeout);
             this._timeout = null;
         }
 
+        this._destroyPopups();
         this._popups = null;
         this._inputSourceManager = null;
         this._settings = null;
@@ -53,8 +50,6 @@ export default class LayoutOsdExtension extends Extension {
     _destroyPopups() {
         for (const popup of this._popups)
             popup.destroy();
-
-        this._popups = [];
     }
 
     _showLayout() {
@@ -82,21 +77,42 @@ export default class LayoutOsdExtension extends Extension {
     }
 
     _showPopup(text) {
-        const opacity = Math.round(this._settings.get_int('opacity') * 255 / 100);
+        const backgroundStyle = this._settings.get_string('background-style');
+        const black = backgroundStyle === 'black';
+        const dark = black || backgroundStyle === 'dark' || (backgroundStyle === 'system' &&
+            St.Settings.get().colorScheme === St.SystemColorScheme.PREFER_DARK);
+        let backgroundColor = dark ? '36, 36, 40' : '248, 248, 249';
+        if (black)
+            backgroundColor = '0, 0, 0';
+
+        const textColor = dark ? '255, 255, 255' : '37, 37, 42';
+        const backgroundOpacity = this._settings.get_int('background-opacity') / 100;
+        const textOpacity = this._settings.get_int('text-opacity') / 100;
+        const style = `background-color: rgba(${backgroundColor}, ${backgroundOpacity});` +
+            `color: rgba(${textColor}, ${textOpacity});`;
         const verticalPosition = this._settings.get_int('vertical-position') / 100;
         const monitors = this._settings.get_boolean('all-monitors')
             ? Main.layoutManager.monitors
-            : [Main.layoutManager.primaryMonitor];
+            : [Main.layoutManager.primaryMonitor].filter(Boolean);
 
         this._destroyPopups();
+        if (this._timeout) {
+            GLib.source_remove(this._timeout);
+            this._timeout = null;
+        }
+        if (monitors.length === 0)
+            return;
 
         for (const monitor of monitors) {
             const popup = new St.Label({
                 text,
                 style_class: 'layout-osd-popup',
+                style,
                 opacity: 0,
             });
 
+            this._popups.add(popup);
+            popup.connect('destroy', () => this._popups.delete(popup));
             Main.uiGroup.add_child(popup);
             popup.get_clutter_text().set_line_wrap(false);
 
@@ -109,32 +125,27 @@ export default class LayoutOsdExtension extends Extension {
             );
 
             popup.ease({
-                opacity,
+                opacity: 255,
                 duration: 150,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
-
-            this._popups.push(popup);
         }
-
-        if (this._timeout)
-            GLib.source_remove(this._timeout);
 
         this._timeout = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
             this._settings.get_double('hide-delay') * 1000,
             () => {
+                this._timeout = null;
+                const duration = this._settings.get_int('fade-duration');
                 for (const popup of this._popups) {
                     popup.ease({
                         opacity: 0,
-                        duration: this._settings.get_int('fade-duration'),
+                        duration,
                         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                         onComplete: () => popup.destroy(),
                     });
                 }
 
-                this._popups = [];
-                this._timeout = null;
                 return GLib.SOURCE_REMOVE;
             }
         );

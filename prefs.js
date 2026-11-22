@@ -9,17 +9,29 @@ const roundToStep = (value, step) => Math.round(value / step) * step;
 
 export default class LayoutOsdPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        window.default_height = 760;
         const settings = this.getSettings();
         const page = new Adw.PreferencesPage({
             title: 'Layout OSD',
         });
+        const appearance = new Adw.PreferencesGroup({
+            title: 'Appearance',
+        });
+        page.add(appearance);
+        this._addChoiceRow(appearance, settings, 'background-style', 'Background style', [
+            ['system', 'Follow system'],
+            ['light', 'Light'],
+            ['dark', 'Dark'],
+            ['black', 'Black'],
+        ]);
+        this._addOpacityRow(appearance, settings, 'background-opacity', 'Background opacity', 0);
+        this._addOpacityRow(appearance, settings, 'text-opacity', 'Text opacity', 20);
+
         const group = new Adw.PreferencesGroup({
             title: 'Popup',
-            description: 'Appearance and behaviour',
         });
 
         page.add(group);
-        this._addOpacityRow(group, settings);
         this._addDelayRow(group, settings);
         this._addFadeRow(group, settings);
         this._addPositionRow(group, settings);
@@ -33,23 +45,27 @@ export default class LayoutOsdPreferences extends ExtensionPreferences {
         );
         group.add(allMonitors);
 
-        this._addDisplayModeRow(group, settings);
+        this._addChoiceRow(group, settings, 'display-mode', 'Layout name', [
+            ['short', 'Short (EN)'],
+            ['localized', 'Localized (English)'],
+            ['full', 'Full (English (US))'],
+        ]);
         this._addTestPopupRow(group, settings);
 
         window.add(page);
     }
 
-    _addOpacityRow(group, settings) {
+    _addOpacityRow(group, settings, key, title, lower) {
         const scale = this._createScale({
-            lower: 10,
+            lower,
             upper: 100,
             step: 1,
             page: 10,
-            value: settings.get_int('opacity'),
+            value: settings.get_int(key),
         });
         scale.set_format_value_func((scale, value) => `${Math.round(value)} %`);
-        this._storeRoundedInt(scale, settings, 'opacity', 1);
-        this._addScaleRow(group, 'Opacity', scale);
+        this._storeRoundedInt(scale, settings, key, 1);
+        this._addScaleRow(group, settings, key, title, scale);
     }
 
     _addDelayRow(group, settings) {
@@ -65,26 +81,22 @@ export default class LayoutOsdPreferences extends ExtensionPreferences {
         scale.connect('value-changed', widget =>
             settings.set_double('hide-delay', widget.get_value())
         );
-        this._addScaleRow(group, 'Hide delay', scale);
+        this._addScaleRow(group, settings, 'hide-delay', 'Hide delay', scale);
     }
 
     _addFadeRow(group, settings) {
-        const value = roundToStep(settings.get_int('fade-duration'), 10);
-        if (settings.get_int('fade-duration') !== value)
-            settings.set_int('fade-duration', value);
-
         const scale = this._createScale({
             lower: 50,
             upper: 1000,
             step: 10,
             page: 100,
-            value,
+            value: settings.get_int('fade-duration'),
         });
         scale.set_format_value_func((scale, currentValue) =>
-            `${roundToStep(currentValue, 10)} ms`
+            `${Math.round(currentValue)} ms`
         );
         this._storeRoundedInt(scale, settings, 'fade-duration', 10);
-        this._addScaleRow(group, 'Fade duration', scale);
+        this._addScaleRow(group, settings, 'fade-duration', 'Fade duration', scale);
     }
 
     _addPositionRow(group, settings) {
@@ -97,24 +109,19 @@ export default class LayoutOsdPreferences extends ExtensionPreferences {
         });
         scale.set_format_value_func((scale, value) => `${Math.round(value)} %`);
         this._storeRoundedInt(scale, settings, 'vertical-position', 1);
-        this._addScaleRow(group, 'Vertical position', scale);
+        this._addScaleRow(group, settings, 'vertical-position', 'Vertical position', scale);
     }
 
-    _addDisplayModeRow(group, settings) {
-        const modes = ['short', 'localized', 'full'];
-        const model = Gtk.StringList.new([
-            'Short (EN)',
-            'Localized (English)',
-            'Full (English (US))',
-        ]);
+    _addChoiceRow(group, settings, key, title, choices) {
+        const value = settings.get_string(key);
         const row = new Adw.ComboRow({
-            title: 'Layout name',
-            model,
-            selected: Math.max(0, modes.indexOf(settings.get_string('display-mode'))),
+            title,
+            model: Gtk.StringList.new(choices.map(([, label]) => label)),
+            selected: Math.max(0, choices.findIndex(([id]) => id === value)),
         });
 
         row.connect('notify::selected', widget =>
-            settings.set_string('display-mode', modes[widget.selected])
+            settings.set_string(key, choices[widget.selected][0])
         );
         group.add(row);
     }
@@ -147,7 +154,8 @@ export default class LayoutOsdPreferences extends ExtensionPreferences {
                 page_increment: page,
                 value,
             }),
-            hexpand: true,
+            width_request: 232,
+            halign: Gtk.Align.END,
             draw_value: true,
             value_pos: Gtk.PositionType.TOP,
         });
@@ -166,7 +174,10 @@ export default class LayoutOsdPreferences extends ExtensionPreferences {
         });
     }
 
-    _addScaleRow(group, title, scale) {
+    _addScaleRow(group, settings, key, title, scale) {
+        const defaultValue = settings.get_default_value(key).deepUnpack();
+        scale.add_mark(defaultValue, Gtk.PositionType.TOP, null);
+
         const row = new Adw.ActionRow({title});
         row.add_suffix(scale);
         group.add(row);

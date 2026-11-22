@@ -4,10 +4,27 @@
   <schema id="org.gnome.shell.extensions.layout-osd"
           path="/org/gnome/shell/extensions/layout-osd/">
 
-    <key name="opacity" type="i">
-      <default>80</default>
+    <key name="background-style" type="s">
+      <default>'system'</default>
+      <choices>
+        <choice value="system"/>
+        <choice value="light"/>
+        <choice value="dark"/>
+        <choice value="black"/>
+      </choices>
+      <summary>OSD background style</summary>
+    </key>
+
+    <key name="background-opacity" type="i">
+      <default>90</default>
+      <range min="0" max="100"/>
+      <summary>OSD background opacity</summary>
+    </key>
+
+    <key name="text-opacity" type="i">
+      <default>100</default>
       <range min="20" max="100"/>
-      <summary>OSD opacity</summary>
+      <summary>OSD text opacity</summary>
     </key>
 
     <key name="hide-delay" type="d">
@@ -23,7 +40,7 @@
     </key>
 
     <key name="vertical-position" type="i">
-      <default>65</default>
+      <default>90</default>
       <range min="0" max="100"/>
       <summary>Vertical position</summary>
     </key>

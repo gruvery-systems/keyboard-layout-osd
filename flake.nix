@@ -6,6 +6,8 @@
   outputs =
     { self, nixpkgs }:
     let
+      metadata = builtins.fromJSON (builtins.readFile ./metadata.json);
+      uuid = metadata.uuid;
       supportedSystems = [
         "aarch64-linux"
         "x86_64-linux"
@@ -17,12 +19,11 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          uuid = "keyboard-layout-osd@gruvery.systems";
         in
         {
           default = pkgs.stdenvNoCC.mkDerivation {
             pname = "keyboard-layout-osd";
-            version = "3";
+            version = toString metadata.version;
             src = self;
 
             nativeBuildInputs = [ pkgs.glib ];
@@ -52,7 +53,7 @@
 
             meta = {
               description = "On-screen display for GNOME keyboard layout switching";
-              homepage = "https://github.com/gruvery/keyboard-layout-osd";
+              homepage = "https://github.com/gruvery-systems/keyboard-layout-osd";
               license = pkgs.lib.licenses.gpl3Only;
               platforms = pkgs.lib.platforms.linux;
             };
@@ -63,7 +64,7 @@
       nixosModules.default =
         { pkgs, ... }:
         {
-          environment.systemPackages = [ self.packages.${pkgs.system}.default ];
+          environment.systemPackages = [ self.packages.${pkgs.stdenv.hostPlatform.system}.default ];
         };
     };
 }
