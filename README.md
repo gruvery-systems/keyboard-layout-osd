@@ -4,47 +4,48 @@
 
 # Keyboard Layout OSD
 
-Keyboard Layout OSD shows a brief on-screen display when you switch keyboard
-layouts or input languages in GNOME Shell.
+Shows a brief on-screen display when you switch keyboard layouts or input
+languages in GNOME Shell 50 or 51.
+
+[Install from GNOME Extensions](https://extensions.gnome.org/extension/10919/keyboard-layout-osd/).
+Open preferences from the Extensions application to configure the popup.
 
 <p align="center">
   <img src="keyboard-layout-osd-animation.gif" alt="Keyboard Layout OSD in action">
 </p>
 
-## Features
+- Short, localized, or full layout names from GNOME
+- System, light, dark, and black styles with separate background and text opacity
+- Adjustable timing, vertical position, and display on all monitors
+- Built-in test popup
 
-- Uses GNOME input-source names for any configured keyboard layout
-- Short, localized, and full layout-name modes
-- System, light, dark, and black popup styles with separate text and background opacity
-- Configurable visibility time, fade duration, and vertical position
-- Optional display on every monitor
-- Built-in test button
-- Native GNOME Shell and libadwaita interface
+<details>
+<summary>Preferences screenshot</summary>
 
-![Keyboard Layout OSD preferences and display modes](keyboard-layout-osd-screen.png)
+![Keyboard Layout OSD preferences](keyboard-layout-osd-screen.png)
 
-## Requirements
-
-- GNOME Shell 50 or 51
-
-## Release notes
-
-Version 4 adds GNOME Shell 51 support and separate background and text
-opacity controls. When upgrading from version 3, opacity resets to the new
-defaults of 90% for the background and 100% for the text. You can adjust
-both values in Appearance.
-
-## Install
-
-Install Keyboard Layout OSD from
-[GNOME Shell Extensions](https://extensions.gnome.org/extension/10919/keyboard-layout-osd/).
+</details>
 
 ## NixOS
 
-The repository provides a flake, so the extension can be installed directly
-without waiting for it to reach Nixpkgs.
+Use Home Manager to install and enable `pkgs.gnomeExtensions.keyboard-layout-osd`.
 
-Add the input to your system flake:
+```nix
+programs.gnome-shell = {
+  enable = true;
+  extensions = [ { package = pkgs.gnomeExtensions.keyboard-layout-osd; } ];
+};
+```
+
+For system-wide installation, add the package to `environment.systemPackages`
+and enable it in the Extensions application. Apply your configuration and log
+out and back in. [Find the package in NixOS Packages](https://search.nixos.org/packages?channel=unstable&query=keyboard-layout-osd).
+
+<details>
+<summary>Flake fallback for newer GNOME Shell support</summary>
+
+If your pinned Nixpkgs package does not support your GNOME Shell version,
+add this input to your flake.
 
 ```nix
 inputs.keyboard-layout-osd = {
@@ -53,103 +54,42 @@ inputs.keyboard-layout-osd = {
 };
 ```
 
-You can test the package before adding it to a system configuration:
+In the Home Manager example above, replace the package with
+`inputs.keyboard-layout-osd.packages.${pkgs.stdenv.hostPlatform.system}.default`.
+Pass `inputs` to Home Manager using
+`home-manager.extraSpecialArgs = { inherit inputs; };` in NixOS, or
+`extraSpecialArgs = { inherit inputs; };` in `homeManagerConfiguration` for
+standalone Home Manager.
+
+For system-wide installation, add
+`inputs.keyboard-layout-osd.nixosModules.default` to your system's `modules`.
+Apply your configuration and log out and back in.
+
+</details>
+
+## Source installation and development
+
+Clone the repository, then compile its settings schema.
 
 ```bash
-nix build github:gruvery-systems/keyboard-layout-osd
-```
-
-### System-wide installation
-
-Add the NixOS module to your existing system definition:
-
-```nix
-nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
-  modules = [
-    ./configuration.nix
-    inputs.keyboard-layout-osd.nixosModules.default
-  ];
-};
-```
-
-Run `sudo nixos-rebuild switch --flake .#your-host` from your system flake
-directory, then log out and back in. Enable **Keyboard Layout OSD** in the
-Extensions application or run:
-
-```bash
-gnome-extensions enable keyboard-layout-osd@gruvery.systems
-```
-
-### Home Manager installation
-
-Pass the flake inputs to your Home Manager modules with
-`home-manager.extraSpecialArgs = { inherit inputs; };` in your NixOS
-configuration. For standalone Home Manager, set
-`extraSpecialArgs = { inherit inputs; };` in the arguments to
-`homeManagerConfiguration`.
-
-Use the GNOME Shell module to install and enable the extension:
-
-```nix
-{ inputs, pkgs, ... }:
-{
-  programs.gnome-shell = {
-    enable = true;
-    extensions = [
-      { package = inputs.keyboard-layout-osd.packages.${pkgs.stdenv.hostPlatform.system}.default; }
-    ];
-  };
-}
-```
-
-Apply your configuration with `nixos-rebuild switch` for integrated Home
-Manager or `home-manager switch` for standalone Home Manager, using your
-usual flake target. Log out and back in so GNOME Shell picks up the extension.
-
-## Install from source
-
-Copy or clone the project to:
-
-```text
-~/.local/share/gnome-shell/extensions/keyboard-layout-osd@gruvery.systems/
-```
-
-Compile the settings schema and enable the extension:
-
-```bash
+git clone https://github.com/gruvery-systems/keyboard-layout-osd \
+  ~/.local/share/gnome-shell/extensions/keyboard-layout-osd@gruvery.systems
 cd ~/.local/share/gnome-shell/extensions/keyboard-layout-osd@gruvery.systems
 glib-compile-schemas schemas
-gnome-extensions enable keyboard-layout-osd@gruvery.systems
 ```
 
-Open its settings from the Extensions application or with:
-
-```bash
-gnome-extensions prefs keyboard-layout-osd@gruvery.systems
-```
-
-## Development
-
-After changing `stylesheet.css`, disable and re-enable the extension:
-
-```bash
-gnome-extensions disable keyboard-layout-osd@gruvery.systems
-gnome-extensions enable keyboard-layout-osd@gruvery.systems
-```
-
-After changing `prefs.js`, close and reopen the preferences window. After
-changing the schema, run `glib-compile-schemas schemas` in the extension
-directory. To pick up changes to `extension.js` or a schema already loaded
-by GNOME Shell, start a fresh Shell process. On Wayland, log out and back in
-or use a nested session with `dbus-run-session -- gnome-shell --devkit --wayland`.
+Log out and back in, then enable the extension in the Extensions application.
+After editing `prefs.js`, reopen preferences. After editing `stylesheet.css`,
+disable and re-enable the extension. Recompile the schema after XML changes.
+Changes to `extension.js` or a loaded schema require a fresh GNOME Shell process.
+On Wayland, log out and back in or test with
+`dbus-run-session -- gnome-shell --devkit --wayland`.
 
 ## License
 
-Keyboard Layout OSD is licensed under the
-[GNU General Public License v3.0](LICENSE).
+Keyboard Layout OSD is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Project
 
-Developed by [Gruvery.Systems](https://github.com/gruvery-systems). Source code and
-issue tracking are available on
-[GitHub](https://github.com/gruvery-systems/keyboard-layout-osd).
+Developed by [Gruvery.Systems](https://gruvery.systems).
+Source code and issue tracking are available on [GitHub](https://github.com/gruvery-systems/keyboard-layout-osd).

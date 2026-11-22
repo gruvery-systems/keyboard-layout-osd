@@ -15,26 +15,21 @@ export default class LayoutOsdExtension extends Extension {
         this._inputSourceManager = Keyboard.getInputSourceManager();
         this._popups = new Set();
         this._timeout = null;
-        this._signalId = this._inputSourceManager.connect(
+        this._inputSourceManager.connectObject(
             'current-source-changed',
-            () => this._showLayout()
+            () => this._showLayout(),
+            this
         );
-        this._testPopupSignalId = this._settings.connect(
+        this._settings.connectObject(
             'changed::test-popup',
-            () => this._showPopup('TEST')
+            () => this._showPopup('TEST'),
+            this
         );
     }
 
     disable() {
-        if (this._signalId !== null) {
-            this._inputSourceManager.disconnect(this._signalId);
-            this._signalId = null;
-        }
-
-        if (this._testPopupSignalId !== null) {
-            this._settings.disconnect(this._testPopupSignalId);
-            this._testPopupSignalId = null;
-        }
+        this._inputSourceManager.disconnectObject(this);
+        this._settings.disconnectObject(this);
 
         if (this._timeout) {
             GLib.source_remove(this._timeout);
@@ -103,6 +98,7 @@ export default class LayoutOsdExtension extends Extension {
         if (monitors.length === 0)
             return;
 
+        const popups = this._popups;
         for (const monitor of monitors) {
             const popup = new St.Label({
                 text,
@@ -111,8 +107,13 @@ export default class LayoutOsdExtension extends Extension {
                 opacity: 0,
             });
 
-            this._popups.add(popup);
-            popup.connect('destroy', () => this._popups.delete(popup));
+            // Keep fullscreen windows composited even between the fade animations.
+            global.compositor.disable_unredirect();
+            popups.add(popup);
+            popup.connect('destroy', () => {
+                popups.delete(popup);
+                global.compositor.enable_unredirect();
+            });
             Main.uiGroup.add_child(popup);
             popup.get_clutter_text().set_line_wrap(false);
 
@@ -137,7 +138,7 @@ export default class LayoutOsdExtension extends Extension {
             () => {
                 this._timeout = null;
                 const duration = this._settings.get_int('fade-duration');
-                for (const popup of this._popups) {
+                for (const popup of popups) {
                     popup.ease({
                         opacity: 0,
                         duration,

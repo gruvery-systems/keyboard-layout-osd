@@ -3,7 +3,7 @@
   "name": "Keyboard Layout OSD",
   "description": "Shows a brief on-screen display when you switch keyboard layouts or input languages.",
   "url": "https://github.com/gruvery-systems/keyboard-layout-osd",
-  "version": 4,
+  "version": 5,
   "shell-version": ["50", "51"],
   "settings-schema": "org.gnome.shell.extensions.layout-osd"
 }
